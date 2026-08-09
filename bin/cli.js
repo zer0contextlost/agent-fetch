@@ -1,22 +1,25 @@
 #!/usr/bin/env node
 'use strict';
 
-const { fetchPage, recipes } = require('../lib');
+const { fetchPage, fetchMany, recipes } = require('../lib');
 
-const USAGE = `agent-fetch <url> [options]
+const USAGE = `agent-fetch <url> [<url2> ...] [options]
 
 A real headless browser for fetching pages a sandboxed fetch tool can't
 reach — JS-rendered content, bot-walled sites, or a real screenshot.
+Pass more than one URL to fetch them concurrently against one shared
+browser instance (much faster than one CLI call per URL — see README).
 
 Output modes (pick one, default is readable text):
   --html                  raw HTML instead of extracted text
   --selector <css>        innerText of one element only
   --recipe <name>         structured JSON via a named recipe (see --list-recipes)
-  --screenshot <file>     save a PNG instead of extracting content
+  --screenshot <file>     save a PNG instead of extracting content (single URL only)
 
 Options:
+  --concurrency <n>       max concurrent pages when multiple URLs are given, default 5
   --limit <n>             passed through to recipes that take one (e.g. reddit-list, default 10)
-  --wait <ms>             extra settle time after load, default 800
+  --wait <ms>             extra settle time after load, default 300
   --full                  don't truncate text/html output
   --full-page             with --screenshot, capture the whole scrollable page
   --width <n>             viewport width, default 1280
@@ -28,8 +31,8 @@ Options:
 
 function parseArgs(argv) {
   const args = {
-    url: null, html: false, full: false, selector: null, wait: 800,
-    recipe: null, limit: 10, screenshot: null, fullPage: false,
+    urls: [], html: false, full: false, selector: null, wait: 300,
+    recipe: null, limit: 10, screenshot: null, fullPage: false, concurrency: 5,
     width: 1280, height: 900, timeout: 30000, listRecipes: false, help: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -38,6 +41,7 @@ function parseArgs(argv) {
     else if (a === '--full') args.full = true;
     else if (a === '--recipe') args.recipe = argv[++i];
     else if (a === '--limit') args.limit = parseInt(argv[++i], 10);
+    else if (a === '--concurrency') args.concurrency = parseInt(argv[++i], 10);
     else if (a === '--selector') args.selector = argv[++i];
     else if (a === '--wait') args.wait = parseInt(argv[++i], 10);
     else if (a === '--screenshot') args.screenshot = argv[++i];
@@ -47,7 +51,7 @@ function parseArgs(argv) {
     else if (a === '--timeout') args.timeout = parseInt(argv[++i], 10);
     else if (a === '--list-recipes') args.listRecipes = true;
     else if (a === '-h' || a === '--help') args.help = true;
-    else if (!args.url) args.url = a;
+    else args.urls.push(a);
   }
   return args;
 }
@@ -63,22 +67,34 @@ async function main() {
     for (const r of recipes.list()) console.log(`${r.name}\t${r.description}`);
     return;
   }
-  if (!args.url) {
+  if (args.urls.length === 0) {
     console.error(USAGE);
     process.exitCode = 1;
     return;
   }
+  if (args.screenshot && args.urls.length > 1) {
+    console.error('agent-fetch: --screenshot only supports a single URL');
+    process.exitCode = 1;
+    return;
+  }
+
+  const opts = {
+    html: args.html, full: args.full, selector: args.selector, wait: args.wait,
+    recipeName: args.recipe, limit: args.limit, screenshot: args.screenshot,
+    fullPage: args.fullPage, width: args.width, height: args.height, timeout: args.timeout,
+  };
 
   try {
-    const result = await fetchPage(args.url, {
-      html: args.html, full: args.full, selector: args.selector, wait: args.wait,
-      recipeName: args.recipe, limit: args.limit, screenshot: args.screenshot,
-      fullPage: args.fullPage, width: args.width, height: args.height, timeout: args.timeout,
-    });
-
-    if (args.screenshot) console.log(`saved screenshot to ${result}`);
-    else if (typeof result === 'string') console.log(result);
-    else console.log(JSON.stringify(result, null, 2));
+    if (args.urls.length === 1) {
+      const result = await fetchPage(args.urls[0], opts);
+      if (args.screenshot) console.log(`saved screenshot to ${result}`);
+      else if (typeof result === 'string') console.log(result);
+      else console.log(JSON.stringify(result, null, 2));
+    } else {
+      const results = await fetchMany(args.urls, { ...opts, concurrency: args.concurrency });
+      console.log(JSON.stringify(results, null, 2));
+      if (results.some((r) => !r.ok)) process.exitCode = 1; // some URLs failed — still printed what succeeded
+    }
   } catch (err) {
     console.error(`agent-fetch: ${err.message}`);
     process.exitCode = 1;

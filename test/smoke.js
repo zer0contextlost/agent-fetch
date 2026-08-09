@@ -4,7 +4,7 @@
 // drives a real browser, so that's what gets tested.
 
 const assert = require('assert');
-const { fetchPage } = require('../lib');
+const { fetchPage, fetchMany } = require('../lib');
 
 async function main() {
   const text = await fetchPage('https://example.com', {});
@@ -15,6 +15,15 @@ async function main() {
 
   const selector = await fetchPage('https://example.com', { selector: 'h1' });
   assert.strictEqual(selector.trim(), 'Example Domain', 'selector mode should scope to one element');
+
+  const batch = await fetchMany(
+    ['https://example.com', 'https://this-domain-does-not-exist-agentfetch-test.invalid'],
+    { concurrency: 2 }
+  );
+  assert.strictEqual(batch.length, 2, 'fetchMany should return one result per URL, in order');
+  assert.strictEqual(batch[0].ok, true, 'good URL in a batch should succeed');
+  assert(batch[0].result.includes('Example Domain'), 'batch result should contain extracted content');
+  assert.strictEqual(batch[1].ok, false, 'bad URL in a batch should fail without taking the whole batch down');
 
   console.log('smoke test passed');
 }
