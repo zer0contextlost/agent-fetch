@@ -1,0 +1,39 @@
+{
+  "name": "agent-fetch",
+  "version": "0.1.0",
+  "description": "A real headless browser for AI coding agents to fetch pages that sandboxed fetch tools can't reach — JS-rendered content, bot-walled sites, or a real screenshot for visual verification.",
+  "license": "MIT",
+  "author": "zer0contextlost",
+  "homepage": "https://github.com/zer0contextlost/agent-fetch",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zer0contextlost/agent-fetch.git"
+  },
+  "bin": {
+    "agent-fetch": "./bin/cli.js"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "node test/smoke.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "recipes"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "ai-agent",
+    "claude",
+    "mcp",
+    "headless-browser",
+    "playwright",
+    "web-scraping",
+    "screenshot"
+  ],
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}
