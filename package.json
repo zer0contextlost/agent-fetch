@@ -1,6 +1,6 @@
 {
   "name": "agent-fetch",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A real headless browser for AI coding agents to fetch pages that sandboxed fetch tools can't reach — JS-rendered content, bot-walled sites, or a real screenshot for visual verification.",
   "license": "MIT",
   "author": "zer0contextlost",

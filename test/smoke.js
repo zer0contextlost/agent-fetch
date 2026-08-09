@@ -25,6 +25,14 @@ async function main() {
   assert(batch[0].result.includes('Example Domain'), 'batch result should contain extracted content');
   assert.strictEqual(batch[1].ok, false, 'bad URL in a batch should fail without taking the whole batch down');
 
+  // Regression case for a real bug found via stress-testing: unicode.org
+  // keeps navigating client-side after the network 'load' event, which can
+  // tear down the execution context mid-extraction. If this site ever
+  // changes its reload behavior the retry path just won't be exercised —
+  // that's fine, it's still a valid live check of the happy path.
+  const unicode = await fetchPage('https://www.unicode.org', { wait: 0 });
+  assert(unicode.length > 0, 'unicode.org should extract successfully despite its post-load navigation');
+
   console.log('smoke test passed');
 }
 
