@@ -103,6 +103,42 @@ const results = await fetchMany(['https://a.example', 'https://b.example'], { co
 // [{ url, ok: true, result } | { url, ok: false, error }, ...] in input order
 ```
 
+## MCP server
+
+`agent-fetch` also ships as an MCP server so an agent can call it as a real
+tool instead of shelling out to the CLI:
+
+```
+agent-fetch-mcp
+```
+
+(installed as a bin alongside `agent-fetch`; point your MCP client's stdio
+config at it, e.g. `npx -p github:zer0contextlost/agent-fetch agent-fetch-mcp`,
+or `node bin/mcp-server.js` from a local clone).
+
+It exposes three tools: `fetch` (single URL, same options as the CLI minus
+`--width`/`--height`), `fetch_many` (concurrent batch), and `list_recipes`.
+Unlike the CLI, the MCP server keeps **one browser context warm for its
+whole process lifetime** and reuses it across every tool call — an agent
+making many calls in a session pays the ~250ms browser-launch cost once,
+not per call, which is the persistent-daemon behavior described in the
+roadmap below, gotten essentially for free from the MCP server being a
+long-lived process.
+
+Example opencode `opencode.json` entry:
+
+```json
+{
+  "mcp": {
+    "agent-fetch": {
+      "type": "local",
+      "command": ["node", "D:/agent-fetch/bin/mcp-server.js"],
+      "enabled": true
+    }
+  }
+}
+```
+
 ## Why this exists
 
 Built while operating a homelab through an AI agent — the agent kept
@@ -113,19 +149,13 @@ running an agent against real infrastructure would want.
 
 ## Roadmap
 
-- **A persistent daemon mode** — even with batching, every separate
-  `agent-fetch` invocation still pays a fresh ~250ms browser-launch cost.
-  The only way to remove that too is a long-lived process that keeps a
-  browser warm and serves requests over a local socket. This is the same
-  underlying work as wrapping the tool as an MCP server (below), not a
-  separate feature — an MCP server is inherently long-lived, so it gets
-  this for free once built.
+- ~~A persistent daemon mode~~ / ~~wrap this as an MCP server~~ — done, see
+  [MCP server](#mcp-server) above. The CLI still pays a fresh browser-launch
+  cost per invocation; the MCP server does not.
 - Caching layer so repeated fetches of the same URL in one session don't
   re-navigate at all
 - A `--diff` mode: two screenshots in, a visual diff out, for regression
   checking UI changes
-- Wrap this as an MCP server so agents can call it as a tool directly
-  instead of shelling out to a CLI
 
 ## License
 
